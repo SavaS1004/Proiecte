@@ -3,16 +3,30 @@ import string
 import secrets
 import pickle
 
+MASTERPASSWORD = "100469"
+DATA_FILE = "Data.pkl"
+
 def RandomGenerator (useDigits, useSymbol, length):
     characters=string.ascii_letters
     if(useDigits):
         characters+=string.digits
-    elif(useSymbol):
+    if(useSymbol):
         characters+=string.punctuation
     password=''.join(secrets.choice(characters) for _ in range(length))
     return password
 
+def SaveData(storageAccounts):
+    with open("DATA_FILE","wb") as file:
+        pickle.dump(storageAccounts,file)
+
+def LoadData():
+    try:
+        with open("DATA_FILE","rb") as file:
+            return pickle.load(file)
+    except (FileNotFoundError, EOFError):
+        return {}
 def Meniu():
+
 
     print("\n..........................")
     print("1.Cautare.")
@@ -65,9 +79,11 @@ def ChangeAccount(storageAccounts):
                 username=input("Username sau email:")
                 password=input("Noua parola.")
                 storageAccounts[name]=[username,password]
-            else:
+            elif option==4:
                 print("Exit.")
                 break
+            else:
+                print("Optiune invalida.")
 def DeleteAccount(storageAccounts):
     name=input("Ce cont stergi?")
     if name in storageAccounts:
@@ -80,24 +96,35 @@ def ShowAll(storageAccounts):
         print(f"🔹 Site: {site} | 📧 Email: {email} | 🔑 Parolă: {password}")
     
 def main():
-    storageAccounts={}
+    if input("Parola:") != MASTERPASSWORD:
+        print("Acces refuzat.")
+        return
+    storageAccounts=LoadData()
+    
     while(True):
         Meniu()
         option=int(input("Ce vrei sa faci?"))
         if option==7:
             print("Exit.")
+            SaveData(storageAccounts)
             break
         elif option==1:
             SearchAccount(storageAccounts)
+            SaveData(storageAccounts)
         elif option==2:
             AddExistingAccount(storageAccounts)
+            SaveData(storageAccounts)
         elif option==3:
             AddNewAccount(storageAccounts)
+            SaveData(storageAccounts)
         elif option==4:
             ChangeAccount(storageAccounts)
+            SaveData(storageAccounts)
         elif option==5:
             DeleteAccount(storageAccounts)
+            SaveData(storageAccounts)
         elif option==6:
-            print(storageAccounts)
+            ShowAll(storageAccounts)
+            SaveData(storageAccounts)
 
 main()
