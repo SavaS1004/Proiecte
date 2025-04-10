@@ -2,7 +2,8 @@
 import string
 import secrets
 import pickle
-
+from cryptography.fernet import Fernet
+from getpass import getpass
 MASTERPASSWORD = "100469"
 DATA_FILE = "Data.pkl"
 
@@ -15,14 +16,18 @@ def RandomGenerator (useDigits, useSymbol, length):
     password=''.join(secrets.choice(characters) for _ in range(length))
     return password
 
-def SaveData(storageAccounts):
-    with open("DATA_FILE","wb") as file:
-        pickle.dump(storageAccounts,file)
+def SaveData(storageAccounts, fernet):
+    data = pickle.dumps(storageAccounts)
+    encrypted_data = fernet.encrypt(data)
+    with open(DATA_FILE, "wb") as file:
+        file.write(encrypted_data)
 
-def LoadData():
+def LoadData(fernet):
     try:
-        with open("DATA_FILE","rb") as file:
-            return pickle.load(file)
+        with open(DATA_FILE, "rb") as file:
+            encrypted_data = file.read()
+            decrypted_data = fernet.decrypt(encrypted_data)
+            return pickle.loads(decrypted_data)
     except (FileNotFoundError, EOFError):
         return {}
 def Meniu():
@@ -38,22 +43,40 @@ def Meniu():
     print("7.Iesire.")
     print("..........................")
 
+def CheckDuplicates(storageAccounts, name):
+    if name in storageAccounts:
+        # if any( email== acc[0] for acc in storageAccounts[name]):
+        return True
+    
+    return False
 def AddNewAccount(storageAccounts):
     id=input("Site/aplicatie:")
     email=input("Username sau email:")
     password=RandomGenerator(True, True,16)
-    storageAccounts[id]=[email,password]
+    print(f"Parola generată: {password}")
+    storageAccounts[id]=[(email,password)]
 
 def AddExistingAccount(storageAccounts):
     name=input("Site/aplicatie:")
+    if name in storageAccounts:
+        option=int(input("Exista un cont deja.\n Doriti sa adaugati inca unul?\n1-'DA'\n2-'NU'"))
+        if option==2:
+            return
+        elif option!=1:
+            print("Optiune invalida.")
+            return
     email=input("Username sau email:")
-    password=input("Noua parola.")
-    storageAccounts[name]=[email,password]
+    password = input("Noua parola:")
+    if name not in storageAccounts:
+        storageAccounts[name] = []
+    storageAccounts[name].append((email, password))
+    print("✅ Contul a fost adăugat.")
 
 def SearchAccount(storageAccounts):
     name=input("Ce cautati?")
     if name in storageAccounts:
-        print(storageAccounts[name])
+        email, password = storageAccounts[name]
+        print(f"📧 Email: {email} | 🔑 Parolă: {password}")
     else:
         print("Contul cautat nu este prezent.")
 
@@ -69,16 +92,17 @@ def ChangeAccount(storageAccounts):
         "3.Contul intreg.\n" \
         "4.Iesire.")
             option=int(input("Ce doriti sa schimbati?"))
+            email,password=storageAccounts[name]
             if option==1:
                 username=input("Username sau email:")
-                storageAccounts[name][0]=username
+                storageAccounts[name]=(username,password)
             elif option ==2:
                 password=input("Noua parola.")
-                storageAccounts[name][1]=password
+                storageAccounts[name]=(email,password)
             elif option==3:
                 username=input("Username sau email:")
                 password=input("Noua parola.")
-                storageAccounts[name]=[username,password]
+                storageAccounts[name]=(username,password)
             elif option==4:
                 print("Exit.")
                 break
@@ -95,36 +119,41 @@ def ShowAll(storageAccounts):
     for site, (email, password) in storageAccounts.items():
         print(f"🔹 Site: {site} | 📧 Email: {email} | 🔑 Parolă: {password}")
     
+def load_key():
+    with open("key.key", "rb") as key_file:
+        return key_file.read()
+
+
 def main():
-    if input("Parola:") != MASTERPASSWORD:
+    fernet = Fernet(load_key())
+    if getpass("Parola:") != MASTERPASSWORD:
         print("Acces refuzat.")
         return
-    storageAccounts=LoadData()
+    storageAccounts=LoadData(fernet)
     
     while(True):
         Meniu()
         option=int(input("Ce vrei sa faci?"))
         if option==7:
             print("Exit.")
-            SaveData(storageAccounts)
+            SaveData(storageAccounts, fernet)
             break
         elif option==1:
             SearchAccount(storageAccounts)
-            SaveData(storageAccounts)
         elif option==2:
             AddExistingAccount(storageAccounts)
-            SaveData(storageAccounts)
+            SaveData(storageAccounts, fernet)
         elif option==3:
             AddNewAccount(storageAccounts)
-            SaveData(storageAccounts)
+            SaveData(storageAccounts, fernet)
         elif option==4:
             ChangeAccount(storageAccounts)
-            SaveData(storageAccounts)
+            SaveData(storageAccounts, fernet)
         elif option==5:
             DeleteAccount(storageAccounts)
-            SaveData(storageAccounts)
+            SaveData(storageAccounts, fernet)
         elif option==6:
             ShowAll(storageAccounts)
-            SaveData(storageAccounts)
+            
 
 main()
